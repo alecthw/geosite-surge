@@ -2,7 +2,7 @@
 geosite.dat
 
 # Build output.
-geosite-to-surge-rule
+geosite-surge
 
 # Generated Surge rule exports.
 surge-rules/

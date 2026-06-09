@@ -1,4 +1,4 @@
-# geosite-to-surge-rule
+# geosite-surge
 
 Convert `geosite.dat` into Surge `.list` rule files.
 

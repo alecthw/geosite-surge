@@ -1,3 +1,3 @@
-module geosite-to-surge-rule
+module geosite-surge
 
 go 1.22

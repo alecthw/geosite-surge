@@ -31,7 +31,7 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) error {
 	var opts options
-	fs := flag.NewFlagSet("geosite-to-surge-rule", flag.ContinueOnError)
+	fs := flag.NewFlagSet("geosite-surge", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.StringVar(&opts.geoSitePath, "geosite", "geosite.dat", "path to geosite.dat; downloaded when missing")
 	fs.StringVar(&opts.outputDir, "out", "surge-rules", "directory for generated Surge .list files")
