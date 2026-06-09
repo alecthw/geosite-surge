@@ -1,0 +1,60 @@
+name: Release Surge Rules
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 20 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release.yml"
+      - "*.go"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-surge-rules
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Test
+        run: go test ./...
+
+      - name: Generate Surge rules
+        run: go run . -out surge-rules
+
+      - name: Publish release branch
+        run: |
+          set -euo pipefail
+
+          release_dir="$(mktemp -d)"
+          rsync -a surge-rules/ "$release_dir"/
+
+          cd "$release_dir"
+          git init --initial-branch=release
+          git add .
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Release Surge rules"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" release:release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
