@@ -1,0 +1,16 @@
+# Local data downloaded by the tool.
+geosite.dat
+
+# Build output.
+geosite-to-surge-rule
+
+# Generated Surge rule exports.
+surge-rules/
+
+# Test and coverage artifacts.
+*.test
+coverage.out
+
+# OS/editor noise.
+.DS_Store
+*.swp
