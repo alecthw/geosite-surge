@@ -143,6 +143,39 @@ func TestBuildRuleFilesSupportsIncludeAttributeFiltersFromAttributes(t *testing.
 	}
 }
 
+func TestSurgeRulesExpandsFiniteRegexToDomainSuffixes(t *testing.T) {
+	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)tt[1-2][0-1]\\.tv$"})
+	want := []string{
+		"DOMAIN-SUFFIX,tt10.tv",
+		"DOMAIN-SUFFIX,tt11.tv",
+		"DOMAIN-SUFFIX,tt20.tv",
+		"DOMAIN-SUFFIX,tt21.tv",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestSurgeRulesExpandsFiniteRegexAlternativesInsteadOfBroadWildcard(t *testing.T) {
+	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)91porn\\.(best|com|tw)$"})
+	want := []string{
+		"DOMAIN-SUFFIX,91porn.best",
+		"DOMAIN-SUFFIX,91porn.com",
+		"DOMAIN-SUFFIX,91porn.tw",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestSurgeRulesDoesNotExpandLargeFiniteRegex(t *testing.T) {
+	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)xv[0-9]{4}\\.top$"})
+	want := []string{"URL-REGEX,(^|\\.)xv[0-9]{4}\\.top$"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
 func TestSurgeRuleConvertsRegexToSpecificDomainRule(t *testing.T) {
 	tests := []struct {
 		name    string

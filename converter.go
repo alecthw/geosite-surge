@@ -171,36 +171,41 @@ func newRuleFile(name string, domains []resolvedDomain) ruleFile {
 	seen := make(map[string]bool)
 	rules := make([]string, 0, len(domains))
 	for _, item := range domains {
-		rule, ok := surgeRule(item.domain)
-		if !ok {
-			continue
+		for _, rule := range surgeRules(item.domain) {
+			if seen[rule] {
+				continue
+			}
+			seen[rule] = true
+			rules = append(rules, rule)
 		}
-		if seen[rule] {
-			continue
-		}
-		seen[rule] = true
-		rules = append(rules, rule)
 	}
 	return ruleFile{Name: sanitizeFileStem(name), Rules: rules}
 }
 
 func surgeRule(d domain) (string, bool) {
+	rules := surgeRules(d)
+	if len(rules) == 0 {
+		return "", false
+	}
+	return rules[0], true
+}
+
+func surgeRules(d domain) []string {
 	value := strings.TrimSpace(d.Value)
 	if value == "" {
-		return "", false
+		return nil
 	}
 	switch d.Type {
 	case domainTypePlain:
-		return "DOMAIN-KEYWORD," + value, true
+		return []string{"DOMAIN-KEYWORD," + value}
 	case domainTypeRegex:
-		rule := surgeRuleForRegex(value)
-		return rule, rule != ""
+		return surgeRulesForRegex(value)
 	case domainTypeRoot:
-		return "DOMAIN-SUFFIX," + value, true
+		return []string{"DOMAIN-SUFFIX," + value}
 	case domainTypeFull:
-		return "DOMAIN," + value, true
+		return []string{"DOMAIN," + value}
 	default:
-		return "", false
+		return nil
 	}
 }
 

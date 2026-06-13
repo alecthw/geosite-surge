@@ -51,4 +51,4 @@ from `listb` that have `attr1` and do not have `attr2`.
 | `Plain` | `DOMAIN-KEYWORD` |
 | `RootDomain` | `DOMAIN-SUFFIX` |
 | `Full` | `DOMAIN` |
-| `Regex` | safely converted to `DOMAIN`, `DOMAIN-SUFFIX`, or `DOMAIN-WILDCARD`; otherwise `URL-REGEX` |
+| `Regex` | finite anchored patterns may expand to `DOMAIN`/`DOMAIN-SUFFIX`; otherwise safely converted to `DOMAIN`, `DOMAIN-SUFFIX`, or `DOMAIN-WILDCARD`; unsupported patterns stay as `URL-REGEX` |
