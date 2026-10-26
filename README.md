@@ -51,4 +51,21 @@ from `listb` that have `attr1` and do not have `attr2`.
 | `Plain` | `DOMAIN-KEYWORD` |
 | `RootDomain` | `DOMAIN-SUFFIX` |
 | `Full` | `DOMAIN` |
-| `Regex` | finite anchored patterns may expand to `DOMAIN`/`DOMAIN-SUFFIX`; otherwise safely converted to `DOMAIN`, `DOMAIN-SUFFIX`, or `DOMAIN-WILDCARD`; unsupported patterns stay as `URL-REGEX` |
+| `Regex` | see below |
+
+geosite regexes match the hostname, while Surge `URL-REGEX` matches the full
+request URL, so regexes are converted to domain rules instead:
+
+- Finite anchored patterns expand to `DOMAIN`/`DOMAIN-SUFFIX` (up to 200 rules),
+  which Surge matches through its domain index.
+- Larger patterns become `DOMAIN-WILDCARD` rules. Character classes are written
+  as enumerated `[...]` classes, `.` becomes `?`, and `(^|\.)x` produces both
+  `x` and `*.x` because `*.x` does not match `x` itself.
+- Unbounded class repeats such as `[0-9]+` become `[0-9]*`, which also matches
+  other characters; such approximations are kept only when the wildcard has at
+  least 3 literal characters outside the last label.
+- Patterns that cannot be expressed, such as lookarounds or single-label
+  hostname patterns, are skipped with a warning on stderr.
+
+`DOMAIN` and `DOMAIN-SUFFIX` rules already covered by a `DOMAIN-SUFFIX` rule in
+the same file are removed.

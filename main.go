@@ -72,9 +72,23 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if err := writeRuleFiles(opts.outputDir, files); err != nil {
 		return err
 	}
+	reportSkippedRules(stderr, files)
 
 	fmt.Fprintf(stdout, "Generated %d Surge rule files in %s\n", len(files), opts.outputDir)
 	return nil
+}
+
+func reportSkippedRules(w io.Writer, files []ruleFile) {
+	seen := make(map[string]bool)
+	for _, file := range files {
+		for _, entry := range file.Skipped {
+			if seen[entry.Value] {
+				continue
+			}
+			seen[entry.Value] = true
+			fmt.Fprintf(w, "warning: skipped regexp %q from %s: %s\n", entry.Value, entry.From, entry.Reason)
+		}
+	}
 }
 
 func ensureGeoSiteFile(path, url string) error {

@@ -44,6 +44,7 @@ func TestRunExportsSelectedCodesCoveringRuleAndAttributeTypes(t *testing.T) {
 			Code: "private",
 			Domains: []domain{
 				{Type: domainTypeRegex, Value: `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`},
+				{Type: domainTypeRoot, Value: "localhost"},
 			},
 		},
 		geoSite{
@@ -78,11 +79,9 @@ func TestRunExportsSelectedCodesCoveringRuleAndAttributeTypes(t *testing.T) {
 
 	assertRules(t, outDir, "google.list", []string{
 		"DOMAIN-SUFFIX,google.com",
-		"DOMAIN,www.google.com",
 		"DOMAIN-KEYWORD,googleapis",
 		"DOMAIN,github.com",
 		"DOMAIN-SUFFIX,netflix.com",
-		"DOMAIN,play.google.com",
 	})
 	assertRules(t, outDir, "google@!cn.list", []string{
 		"DOMAIN,play.google.com",
@@ -100,11 +99,14 @@ func TestRunExportsSelectedCodesCoveringRuleAndAttributeTypes(t *testing.T) {
 		"DOMAIN-SUFFIX,steamads.com",
 	})
 	assertRules(t, outDir, "epicgames.list", []string{
-		"DOMAIN-WILDCARD,cdn*-epicgames-*.file.myqcloud.com",
+		"DOMAIN-WILDCARD,cdn[0123456789]-epicgames-[0123456789]*.file.myqcloud.com",
 	})
 	assertRules(t, outDir, "private.list", []string{
-		`URL-REGEX,^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`,
+		"DOMAIN-SUFFIX,localhost",
 	})
+	if !strings.Contains(stderr.String(), "warning: skipped regexp \"^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$\" from private") {
+		t.Fatalf("missing skipped regexp warning, stderr:\n%s", stderr.String())
+	}
 	assertRules(t, outDir, "ccb.list", []string{
 		"DOMAIN-SUFFIX,ccb.com",
 	})

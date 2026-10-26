@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -143,86 +144,38 @@ func TestBuildRuleFilesSupportsIncludeAttributeFiltersFromAttributes(t *testing.
 	}
 }
 
-func TestSurgeRulesExpandsFiniteRegexToDomainSuffixes(t *testing.T) {
-	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)tt[1-2][0-1]\\.tv$"})
+func TestNewRuleFilePrunesRulesCoveredBySuffix(t *testing.T) {
+	file := newRuleFile("test", []resolvedDomain{
+		{domain: domain{Type: domainTypeFull, Value: "www.example.com"}},
+		{domain: domain{Type: domainTypeRoot, Value: "cdn.example.com"}},
+		{domain: domain{Type: domainTypeRoot, Value: "example.com"}},
+		{domain: domain{Type: domainTypeFull, Value: "example.com"}},
+		{domain: domain{Type: domainTypeFull, Value: "example.org"}},
+		{domain: domain{Type: domainTypeRoot, Value: "notexample.com"}},
+		{domain: domain{Type: domainTypePlain, Value: "example"}},
+	})
+
 	want := []string{
-		"DOMAIN-SUFFIX,tt10.tv",
-		"DOMAIN-SUFFIX,tt11.tv",
-		"DOMAIN-SUFFIX,tt20.tv",
-		"DOMAIN-SUFFIX,tt21.tv",
+		"DOMAIN-SUFFIX,example.com",
+		"DOMAIN,example.org",
+		"DOMAIN-SUFFIX,notexample.com",
+		"DOMAIN-KEYWORD,example",
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
-	}
-}
-
-func TestSurgeRulesExpandsFiniteRegexAlternativesInsteadOfBroadWildcard(t *testing.T) {
-	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)91porn\\.(best|com|tw)$"})
-	want := []string{
-		"DOMAIN-SUFFIX,91porn.best",
-		"DOMAIN-SUFFIX,91porn.com",
-		"DOMAIN-SUFFIX,91porn.tw",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
+	if !reflect.DeepEqual(file.Rules, want) {
+		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", file.Rules, want)
 	}
 }
 
-func TestSurgeRulesDoesNotExpandLargeFiniteRegex(t *testing.T) {
-	got := surgeRules(domain{Type: domainTypeRegex, Value: "(^|\\.)xv[0-9]{4}\\.top$"})
-	want := []string{"URL-REGEX,(^|\\.)xv[0-9]{4}\\.top$"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", got, want)
-	}
-}
+func TestNewRuleFileRecordsSkippedRegex(t *testing.T) {
+	file := newRuleFile("private", []resolvedDomain{
+		{domain: domain{Type: domainTypeRegex, Value: `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`}, from: "private"},
+		{domain: domain{Type: domainTypeRoot, Value: "localhost"}, from: "private"},
+	})
 
-func TestSurgeRuleConvertsRegexToSpecificDomainRule(t *testing.T) {
-	tests := []struct {
-		name    string
-		pattern string
-		want    string
-	}{
-		{
-			name:    "exact domain",
-			pattern: `^github\.com$`,
-			want:    "DOMAIN,github.com",
-		},
-		{
-			name:    "domain suffix",
-			pattern: `(^|\.)netflix\.com$`,
-			want:    "DOMAIN-SUFFIX,netflix.com",
-		},
-		{
-			name:    "repeated subdomain suffix",
-			pattern: `^(.+\.)*example\.com$`,
-			want:    "DOMAIN-SUFFIX,example.com",
-		},
-		{
-			name:    "wildcard",
-			pattern: `^cdn\d-epicgames-\d+\.file\.myqcloud\.com$`,
-			want:    "DOMAIN-WILDCARD,cdn*-epicgames-*.file.myqcloud.com",
-		},
-		{
-			name:    "unsupported fallback",
-			pattern: `^a(?=b)\.example\.com$`,
-			want:    `URL-REGEX,^a(?=b)\.example\.com$`,
-		},
-		{
-			name:    "broad wildcard fallback",
-			pattern: `.*\.com`,
-			want:    `URL-REGEX,.*\.com`,
-		},
+	if want := []string{"DOMAIN-SUFFIX,localhost"}; !reflect.DeepEqual(file.Rules, want) {
+		t.Fatalf("rules mismatch\n got: %#v\nwant: %#v", file.Rules, want)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := surgeRule(domain{Type: domainTypeRegex, Value: tt.pattern})
-			if !ok {
-				t.Fatal("surgeRule returned ok=false")
-			}
-			if got != tt.want {
-				t.Fatalf("rule mismatch\n got: %s\nwant: %s", got, tt.want)
-			}
-		})
+	if len(file.Skipped) != 1 || file.Skipped[0].From != "private" || !strings.Contains(file.Skipped[0].Reason, "single-label") {
+		t.Fatalf("unexpected skipped entries: %#v", file.Skipped)
 	}
 }

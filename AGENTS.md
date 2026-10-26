@@ -26,7 +26,7 @@ Use standard Go formatting and idioms. Keep package-level helpers small and focu
 
 ## Testing Guidelines
 
-Tests use Go’s built-in `testing` package. Add or update `*_test.go` files whenever conversion behavior, include resolution, regex handling, or protobuf parsing changes. For regex changes, include cases for exact conversion, expanded finite patterns, wildcard fallback, and unsupported `URL-REGEX` fallback.
+Tests use Go’s built-in `testing` package. Add or update `*_test.go` files whenever conversion behavior, include resolution, regex handling, or protobuf parsing changes. For regex changes, include cases for exact conversion, expanded finite patterns, wildcard conversion, approximate wildcards, and skipped unsupported patterns.
 
 ## Commit & Pull Request Guidelines
 

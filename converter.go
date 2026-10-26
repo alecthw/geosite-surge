@@ -165,13 +165,32 @@ func collectAttributes(domains []resolvedDomain) []string {
 type ruleFile struct {
 	Name  string
 	Rules []string
+	// Skipped lists source entries that have no Surge domain rule
+	// equivalent and were left out of Rules.
+	Skipped []skippedEntry
+}
+
+type skippedEntry struct {
+	Value  string
+	From   string
+	Reason string
 }
 
 func newRuleFile(name string, domains []resolvedDomain) ruleFile {
 	seen := make(map[string]bool)
+	file := ruleFile{Name: sanitizeFileStem(name)}
 	rules := make([]string, 0, len(domains))
 	for _, item := range domains {
-		for _, rule := range surgeRules(item.domain) {
+		converted, err := surgeRules(item.domain)
+		if err != nil {
+			file.Skipped = append(file.Skipped, skippedEntry{
+				Value:  item.domain.Value,
+				From:   item.from,
+				Reason: err.Error(),
+			})
+			continue
+		}
+		for _, rule := range converted {
 			if seen[rule] {
 				continue
 			}
@@ -179,33 +198,64 @@ func newRuleFile(name string, domains []resolvedDomain) ruleFile {
 			rules = append(rules, rule)
 		}
 	}
-	return ruleFile{Name: sanitizeFileStem(name), Rules: rules}
+	file.Rules = pruneCoveredRules(rules)
+	return file
 }
 
-func surgeRule(d domain) (string, bool) {
-	rules := surgeRules(d)
-	if len(rules) == 0 {
-		return "", false
+// pruneCoveredRules drops DOMAIN and DOMAIN-SUFFIX rules already matched by a
+// DOMAIN-SUFFIX rule in the same file.
+func pruneCoveredRules(rules []string) []string {
+	suffixes := make(map[string]bool)
+	for _, rule := range rules {
+		if value, ok := strings.CutPrefix(rule, "DOMAIN-SUFFIX,"); ok {
+			suffixes[value] = true
+		}
 	}
-	return rules[0], true
+	if len(suffixes) == 0 {
+		return rules
+	}
+
+	out := rules[:0]
+	for _, rule := range rules {
+		if value, ok := strings.CutPrefix(rule, "DOMAIN,"); ok && coveredBySuffix(value, suffixes, true) {
+			continue
+		}
+		if value, ok := strings.CutPrefix(rule, "DOMAIN-SUFFIX,"); ok && coveredBySuffix(value, suffixes, false) {
+			continue
+		}
+		out = append(out, rule)
+	}
+	return out
 }
 
-func surgeRules(d domain) []string {
+func coveredBySuffix(host string, suffixes map[string]bool, includeSelf bool) bool {
+	if includeSelf && suffixes[host] {
+		return true
+	}
+	for index := 0; index < len(host); index++ {
+		if host[index] == '.' && suffixes[host[index+1:]] {
+			return true
+		}
+	}
+	return false
+}
+
+func surgeRules(d domain) ([]string, error) {
 	value := strings.TrimSpace(d.Value)
 	if value == "" {
-		return nil
+		return nil, nil
 	}
 	switch d.Type {
 	case domainTypePlain:
-		return []string{"DOMAIN-KEYWORD," + value}
+		return []string{"DOMAIN-KEYWORD," + value}, nil
 	case domainTypeRegex:
 		return surgeRulesForRegex(value)
 	case domainTypeRoot:
-		return []string{"DOMAIN-SUFFIX," + value}
+		return []string{"DOMAIN-SUFFIX," + value}, nil
 	case domainTypeFull:
-		return []string{"DOMAIN," + value}
+		return []string{"DOMAIN," + value}, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
