@@ -1,0 +1,2 @@
+DOMAIN-WILDCARD,cdn[0123456789]-epicgames-[0123456789]*.file.myqcloud.com
+DOMAIN-WILDCARD,epicgames-download[0123456789]-[0123456789]*.file.myqcloud.com
